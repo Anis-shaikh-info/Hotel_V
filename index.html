@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hotel Vrundavan | Ranjangaon Ganpati</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <style>
         * {
             margin: 0;
@@ -440,35 +441,26 @@
             color: var(--primary);
         }
 
-        .social-links {
-            display: flex;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .social-links a {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            color: white;
-            transition: all 0.3s;
-        }
-
-        .social-links a:hover {
-            background-color: var(--primary);
-            transform: translateY(-5px);
-        }
-
         .copyright {
             text-align: center;
             padding-top: 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             font-size: 14px;
             color: #ccc;
+        }
+
+        /* Payment Section Styles */
+        .payment-info {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .payment-info p {
+            margin: 5px 0;
+            font-size: 14px;
         }
 
         /* Responsive Design */
@@ -633,9 +625,9 @@
                             <label for="roomType">Room Type</label>
                             <select id="roomType" name="roomType" required>
                                 <option value="">Select Room Type</option>
-                                <option value="standard">Standard Room</option>
-                                <option value="deluxe">Deluxe Room</option>
-                                <option value="family">Family Suite</option>
+                                <option value="standard" data-price="1500">Standard Room</option>
+                                <option value="deluxe" data-price="2500">Deluxe Room</option>
+                                <option value="family" data-price="4000">Family Suite</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -676,6 +668,11 @@
                                 <option value="voter">Voter ID</option>
                             </select>
                         </div>
+                    </div>
+                    
+                    <div class="payment-info">
+                        <p><strong>We accept international payments</strong></p>
+                        <p>Credit Cards • Debit Cards • Net Banking • UPI • International Cards</p>
                     </div>
                     
                     <div class="terms">
@@ -784,12 +781,6 @@
                 <div class="footer-column">
                     <h3>Hotel Vrundavan</h3>
                     <p>Your peaceful retreat near Ranjangaon Ganpati Temple. Experience divine comfort with modern amenities.</p>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-tripadvisor"></i></a>
-                    </div>
                 </div>
                 
                 <div class="footer-column">
@@ -820,19 +811,112 @@
     </footer>
 
     <script>
+        // Razorpay configuration
+        const razorpayKey = 'rzp_live_ReqykGWvd4sZvP';
+        
+        // Room prices mapping
+        const roomPrices = {
+            'standard': 1500,
+            'deluxe': 2500,
+            'family': 4000
+        };
+
         // Form submission handler
         document.getElementById('bookingForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            // In a real implementation, this would connect to Razorpay API
-            alert('Thank you for your booking! You will be redirected to the payment gateway.');
+            // Calculate total amount based on room type and nights
+            const roomType = document.getElementById('roomType').value;
+            const checkin = new Date(document.getElementById('checkin').value);
+            const checkout = new Date(document.getElementById('checkout').value);
             
-            // Here you would integrate with Razorpay API
-            // For demonstration, we'll just show a success message
-            setTimeout(function() {
-                alert('Payment successful! Your booking has been confirmed. A confirmation email has been sent.');
-                document.getElementById('bookingForm').reset();
-            }, 1000);
+            if (!roomType) {
+                alert('Please select a room type');
+                return;
+            }
+            
+            if (!checkin || !checkout) {
+                alert('Please select both check-in and check-out dates');
+                return;
+            }
+            
+            // Calculate number of nights
+            const nights = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
+            
+            if (nights <= 0) {
+                alert('Check-out date must be after check-in date');
+                return;
+            }
+            
+            const roomPrice = roomPrices[roomType];
+            const totalAmount = roomPrice * nights * 100; // Convert to paise for Razorpay
+            
+            // Get customer details
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            
+            // Create Razorpay order
+            const options = {
+                key: razorpayKey,
+                amount: totalAmount,
+                currency: 'INR',
+                name: 'Hotel Vrundavan',
+                description: `Booking for ${document.getElementById('roomType').options[document.getElementById('roomType').selectedIndex].text} - ${nights} night(s)`,
+                handler: function(response) {
+                    // Payment successful
+                    alert(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
+                    
+                    // In a real implementation, you would send this to your server
+                    console.log('Payment successful:', response);
+                    
+                    // Show booking confirmation
+                    alert('Your booking has been confirmed! A confirmation email has been sent.');
+                    document.getElementById('bookingForm').reset();
+                },
+                prefill: {
+                    name: name,
+                    email: email,
+                    contact: phone
+                },
+                notes: {
+                    address: 'Hotel Vrundavan, Ranjangaon'
+                },
+                theme: {
+                    color: '#d4af37'
+                },
+                modal: {
+                    ondismiss: function() {
+                        alert('Payment was cancelled. Please try again.');
+                    }
+                }
+            };
+            
+            // Enable international payments
+            options.config = {
+                display: {
+                    blocks: {
+                        banks: {
+                            name: 'Pay using',
+                            instruments: [
+                                {
+                                    method: 'card',
+                                    networks: ['Visa', 'MasterCard', 'Maestro', 'Amex', 'Diners', 'Rupay']
+                                },
+                                {
+                                    method: 'netbanking'
+                                },
+                                {
+                                    method: 'upi'
+                                }
+                            ]
+                        }
+                    }
+                }
+            };
+            
+            const rzp = new Razorpay(options);
+            rzp.open();
         });
         
         // Set minimum date for check-in to today
@@ -842,6 +926,16 @@
         // Update checkout min date when checkin date changes
         document.getElementById('checkin').addEventListener('change', function() {
             document.getElementById('checkout').setAttribute('min', this.value);
+        });
+        
+        // Update room price display when room type changes
+        document.getElementById('roomType').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const price = selectedOption.getAttribute('data-price');
+            if (price) {
+                // You can display the calculated price based on nights here
+                console.log(`Selected room price: ₹${price}/night`);
+            }
         });
     </script>
 </body>
